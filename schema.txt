@@ -1,0 +1,113 @@
+show tables;
++------------------+
+| Tables_in_ems_db |
++------------------+
+| attendance       |
+| clients          |
+| employee         |
+| office           |
+| payroll          |
+| projects         |
+| tasks            |
+| user_roles       |
+| users            |
+| vendors          |
++------------------+
+10 rows in set (0.0022 sec)
+ MySQL  localhost:33060+ ssl  ems_db  SQL > desc attendance;desc clients;desc employee; desc office; desc payroll; desc projects; desc user_roles;desc users; desc vendors
++---------------+-----------------------------------------+------+-----+---------+----------------+
+| Field         | Type                                    | Null | Key | Default | Extra          |
++---------------+-----------------------------------------+------+-----+---------+----------------+
+| attendance_id | int                                     | NO   | PRI | NULL    | auto_increment |
+| employee_id   | int                                     | NO   | MUL | NULL    |                |
+| date          | date                                    | NO   |     | NULL    |                |
+| status        | enum('Present','Absent','Late','Leave') | NO   |     | NULL    |                |
++---------------+-----------------------------------------+------+-----+---------+----------------+
+4 rows in set (0.0043 sec)
++--------------+--------------+------+-----+---------+----------------+
+| Field        | Type         | Null | Key | Default | Extra          |
++--------------+--------------+------+-----+---------+----------------+
+| client_id    | int          | NO   | PRI | NULL    | auto_increment |
+| name         | varchar(100) | NO   |     | NULL    |                |
+| email        | varchar(100) | NO   |     | NULL    |                |
+| phone        | varchar(20)  | NO   |     | NULL    |                |
+| company_name | varchar(100) | NO   |     | NULL    |                |
+| address      | varchar(255) | NO   |     | NULL    |                |
++--------------+--------------+------+-----+---------+----------------+
+6 rows in set (0.0036 sec)
++-----------------+---------------+------+-----+---------+----------------+
+| Field           | Type          | Null | Key | Default | Extra          |
++-----------------+---------------+------+-----+---------+----------------+
+| employee_id     | int           | NO   | PRI | NULL    | auto_increment |
+| user_id         | int           | NO   | MUL | NULL    |                |
+| department      | varchar(50)   | NO   |     | NULL    |                |
+| designation     | varchar(50)   | NO   |     | NULL    |                |
+| salary          | decimal(10,2) | NO   |     | NULL    |                |
+| date_of_joining | date          | NO   |     | NULL    |                |
++-----------------+---------------+------+-----+---------+----------------+
+6 rows in set (0.0032 sec)
++-------------+--------------+------+-----+---------+----------------+
+| Field       | Type         | Null | Key | Default | Extra          |
++-------------+--------------+------+-----+---------+----------------+
+| office_id   | int          | NO   | PRI | NULL    | auto_increment |
+| office_name | varchar(100) | NO   |     | NULL    |                |
+| location    | varchar(255) | NO   |     | NULL    |                |
+| manager_id  | int          | YES  | MUL | NULL    |                |
++-------------+--------------+------+-----+---------+----------------+
+4 rows in set (0.0024 sec)
++----------------+------------------------+------+-----+---------+------------------+
+| Field          | Type                   | Null | Key | Default | Extra            |
++----------------+------------------------+------+-----+---------+------------------+
+| payroll_id     | int                    | NO   | PRI | NULL    | auto_increment   |
+| employee_id    | int                    | NO   | MUL | NULL    |                  |
+| salary_month   | varchar(20)            | NO   |     | NULL    |                  |
+| basic_salary   | decimal(10,2)          | NO   |     | NULL    |                  |
+| deductions     | decimal(10,2)          | YES  |     | 0.00    |                  |
+| net_salary     | decimal(10,2)          | YES  |     | NULL    | STORED GENERATED |
+| payment_status | enum('Paid','Pending') | YES  |     | Pending |                  |
++----------------+------------------------+------+-----+---------+------------------+
+7 rows in set (0.0029 sec)
++--------------+--------------+------+-----+---------+----------------+
+| Field        | Type         | Null | Key | Default | Extra          |
++--------------+--------------+------+-----+---------+----------------+
+| project_id   | int          | NO   | PRI | NULL    | auto_increment |
+| project_name | varchar(100) | NO   |     | NULL    |                |
+| description  | text         | YES  |     | NULL    |                |
+| start_date   | date         | NO   |     | NULL    |                |
+| end_date     | date         | YES  |     | NULL    |                |
+| manager_id   | int          | YES  | MUL | NULL    |                |
++--------------+--------------+------+-----+---------+----------------+
+6 rows in set (0.0030 sec)
++---------+------------------------------------+------+-----+---------+----------------+
+| Field   | Type                               | Null | Key | Default | Extra          |
++---------+------------------------------------+------+-----+---------+----------------+
+| role_id | int                                | NO   | PRI | NULL    | auto_increment |
+| user_id | int                                | NO   | MUL | NULL    |                |
+| role    | enum('Admin','Manager','Employee') | NO   |     | NULL    |                |
++---------+------------------------------------+------+-----+---------+----------------+
+3 rows in set (0.0018 sec)
++------------+------------------------------------+------+-----+-------------------+-------------------+
+| Field      | Type                               | Null | Key | Default           | Extra             |
++------------+------------------------------------+------+-----+-------------------+-------------------+
+| user_id    | int                                | NO   | PRI | NULL              | auto_increment    |
+| first_name | varchar(50)                        | NO   |     | NULL              |                   |
+| last_name  | varchar(50)                        | NO   |     | NULL              |                   |
+| email      | varchar(100)                       | NO   | UNI | NULL              |                   |
+| password   | varchar(255)                       | NO   |     | NULL              |                   |
+| role       | enum('Admin','Manager','Employee') | NO   |     | NULL              |                   |
+| created_at | timestamp                          | YES  |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
++------------+------------------------------------+------+-----+-------------------+-------------------+
+7 rows in set (0.0016 sec)
+                                         -> ;
++--------------+--------------+------+-----+---------+----------------+
+| Field        | Type         | Null | Key | Default | Extra          |
++--------------+--------------+------+-----+---------+----------------+
+| vendor_id    | int          | NO   | PRI | NULL    | auto_increment |
+| name         | varchar(100) | NO   |     | NULL    |                |
+| email        | varchar(100) | NO   |     | NULL    |                |
+| phone        | varchar(20)  | NO   |     | NULL    |                |
+| company_name | varchar(100) | NO   |     | NULL    |                |
+| address      | varchar(255) | NO   |     | NULL    |                |
++--------------+--------------+------+-----+---------+----------------+
+6 rows in set (0.0017 sec)
+ MySQL  localhost:33060+ ssl  ems_db  SQL > 
