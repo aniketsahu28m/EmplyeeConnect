@@ -14,6 +14,7 @@ import Vendors from './pages/Vendors';
 import TeamCollaboration from './pages/TeamCollaboration';
 import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import SignUp from './pages/SignUp';
 
 // Basic authenticated route
@@ -39,97 +40,105 @@ const RoleRoute = ({ children, allowedRoles }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Toaster position="top-right" />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<SignUp />} />
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <Layout />
-              </PrivateRoute>
-            }
-          >
-            <Route index element={<Dashboard />} />
-            
-            {/* Admin-only routes */}
-            <Route 
-              path="employees" 
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              className: '!bg-white !text-gray-900 !border !border-gray-200 !shadow-lg !rounded-xl !text-sm',
+            }}
+          />
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route
+              path="/"
               element={
-                <RoleRoute allowedRoles={['Admin']}>
-                  <Employees />
-                </RoleRoute>
-              } 
-            />
-            <Route 
-              path="offices" 
-              element={
-                <RoleRoute allowedRoles={['Admin']}>
-                  <Offices />
-                </RoleRoute>
-              } 
-            />
-            <Route 
-              path="payroll" 
-              element={
-                <RoleRoute allowedRoles={['Admin']}>
-                  <Payroll />
-                </RoleRoute>
-              } 
-            />
-            <Route 
-              path="clients" 
-              element={
-                <RoleRoute allowedRoles={['Admin']}>
-                  <Clients />
-                </RoleRoute>
-              } 
-            />
-            <Route 
-              path="vendors" 
-              element={
-                <RoleRoute allowedRoles={['Admin']}>
-                  <Vendors />
-                </RoleRoute>
-              } 
-            />
-            <Route 
-              path="user-roles" 
-              element={
-                <RoleRoute allowedRoles={['Admin']}>
-                  <UserRoles />
-                </RoleRoute>
-              } 
-            />
-            
-            {/* Manager and Admin routes */}
-            <Route 
-              path="projects" 
-              element={
-                <RoleRoute allowedRoles={['Admin', 'Manager']}>
-                  <Projects />
-                </RoleRoute>
-              } 
-            />
-            <Route 
-              path="attendance" 
-              element={
-                <RoleRoute allowedRoles={['Admin', 'Manager']}>
-                  <Attendance />
-                </RoleRoute>
-              } 
-            />
-            
-            {/* Routes for all roles */}
-            <Route path="tasks" element={<Tasks />} />
-            <Route path="team-collaboration" element={<TeamCollaboration />} />
-          </Route>
-        </Routes>
-      </Router>
-    </AuthProvider>
+                <PrivateRoute>
+                  <Layout />
+                </PrivateRoute>
+              }
+            >
+              <Route index element={<Dashboard />} />
+              
+              {/* Admin-only routes */}
+              <Route 
+                path="employees" 
+                element={
+                  <RoleRoute allowedRoles={['Admin']}>
+                    <Employees />
+                  </RoleRoute>
+                } 
+              />
+              <Route 
+                path="offices" 
+                element={
+                  <RoleRoute allowedRoles={['Admin']}>
+                    <Offices />
+                  </RoleRoute>
+                } 
+              />
+              <Route 
+                path="payroll" 
+                element={
+                  <RoleRoute allowedRoles={['Admin']}>
+                    <Payroll />
+                  </RoleRoute>
+                } 
+              />
+              <Route 
+                path="clients" 
+                element={
+                  <RoleRoute allowedRoles={['Admin']}>
+                    <Clients />
+                  </RoleRoute>
+                } 
+              />
+              <Route 
+                path="vendors" 
+                element={
+                  <RoleRoute allowedRoles={['Admin']}>
+                    <Vendors />
+                  </RoleRoute>
+                } 
+              />
+              <Route 
+                path="user-roles" 
+                element={
+                  <RoleRoute allowedRoles={['Admin']}>
+                    <UserRoles />
+                  </RoleRoute>
+                } 
+              />
+              
+              {/* Manager and Admin routes */}
+              <Route 
+                path="projects" 
+                element={
+                  <RoleRoute allowedRoles={['Admin', 'Manager']}>
+                    <Projects />
+                  </RoleRoute>
+                } 
+              />
+              <Route 
+                path="attendance" 
+                element={
+                  <RoleRoute allowedRoles={['Admin', 'Manager']}>
+                    <Attendance />
+                  </RoleRoute>
+                } 
+              />
+              
+              {/* Routes for all roles */}
+              <Route path="tasks" element={<Tasks />} />
+              <Route path="team-collaboration" element={<TeamCollaboration />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

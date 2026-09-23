@@ -1,402 +1,226 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { FaUsers, FaProjectDiagram, FaTasks, FaClock, FaMoneyBillWave, FaCheck, FaCalendarAlt, FaFileAlt } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
-import Logo from '../components/Logo';
+import { StatusLabel, PriorityLabel } from '../components/StatusLabel';
+
+const ROLE_NAMES = { Admin: 'Administrator', Manager: 'Manager', Employee: 'Employee' };
+
+const formatDate = (value) =>
+  value
+    ? new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '—';
+
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const projectStatus = (project) => {
+  const now = new Date();
+  const start = new Date(project.start_date);
+  const end = project.end_date ? new Date(project.end_date) : null;
+  if (end && now > end) return 'Completed';
+  if (now >= start) return 'Active';
+  return 'Upcoming';
+};
+
+// Finds the employee record behind the logged-in user (tasks and projects are keyed by employee_id).
+const findEmployeeId = async (userId) => {
+  const res = await axios.get('/api/employees');
+  return res.data.find((emp) => emp.user_id === userId)?.employee_id;
+};
+
+const Stat = ({ label, value, note, loading }) => (
+  <div className="bg-white px-5 py-4">
+    <p className="text-xs text-gray-500">{label}</p>
+    <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-gray-900">
+      {loading ? <span className="text-gray-300">–</span> : value}
+    </p>
+    {note && <p className="mt-0.5 text-xs text-gray-500">{loading ? ' ' : note}</p>}
+  </div>
+);
+
+const Panel = ({ title, to, linkText = 'View all', children }) => (
+  <section className="card">
+    <div className="flex items-center justify-between border-b border-gray-200 px-4 py-2.5">
+      <h2 className="text-[13px] font-semibold text-gray-900">{title}</h2>
+      {to && (
+        <Link to={to} className="text-xs font-medium text-blue-700 hover:underline">
+          {linkText}
+        </Link>
+      )}
+    </div>
+    {children}
+  </section>
+);
 
 const Dashboard = () => {
-  const [stats, setStats] = useState({
-    total_employees: 0,
-    total_projects: 0,
-    total_tasks: 0,
-    pending_tasks: 0
-  });
-  
-  const [employeeStats, setEmployeeStats] = useState({
-    assigned_tasks: 0,
-    completed_tasks: 0,
-    pending_tasks: 0,
-    in_progress_tasks: 0
-  });
-  
   const { user } = useAuth();
+  const isEmployee = user.role === 'Employee';
+  const [stats, setStats] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const navigate = useNavigate();
-
-  const fetchStats = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/api/dashboard/stats');
-      setStats(response.data);
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const fetchEmployeeStats = async () => {
-    try {
-      if (user.role === 'Employee') {
-        // Get the employee ID for this user
-        const employeeRes = await axios.get('http://localhost:5000/api/employees');
-        const currentEmployee = employeeRes.data.find(emp => emp.user_id === user.id);
-        
-        if (currentEmployee) {
-          // Get tasks for this employee
-          const tasksRes = await axios.get(`http://localhost:5000/api/tasks/employee/${currentEmployee.employee_id}`);
-          const tasks = tasksRes.data;
-          
-          // Calculate stats
-          const assignedTasks = tasks.length;
-          const completedTasks = tasks.filter(task => task.status === 'Completed').length;
-          const pendingTasks = tasks.filter(task => task.status === 'Pending').length;
-          const inProgressTasks = tasks.filter(task => task.status === 'In Progress').length;
-          
-          setEmployeeStats({
-            assigned_tasks: assignedTasks,
-            completed_tasks: completedTasks,
-            pending_tasks: pendingTasks,
-            in_progress_tasks: inProgressTasks
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching employee stats:', error);
-    }
-  };
 
   useEffect(() => {
-    if (user.role !== 'Employee') {
-      fetchStats();
-    }
-    
-    if (user.role === 'Employee') {
-      fetchEmployeeStats();
-    }
+    const load = async () => {
+      try {
+        if (user.role === 'Employee') {
+          const employeeId = await findEmployeeId(user.id);
+          if (employeeId) {
+            const res = await axios.get(`/api/tasks/employee/${employeeId}`);
+            setTasks(res.data);
+          }
+          return;
+        }
 
-    // Update time every second
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+        const [statsRes, tasksRes] = await Promise.all([
+          axios.get('/api/dashboard/stats'),
+          axios.get('/api/tasks'),
+        ]);
+        setStats(statsRes.data);
+        setTasks(tasksRes.data);
 
-    // Cleanup interval on component unmount
-    return () => clearInterval(timer);
-  }, [user.role]);
+        if (user.role === 'Manager') {
+          const employeeId = await findEmployeeId(user.id);
+          const res = employeeId ? await axios.get(`/api/projects/manager/${employeeId}`) : { data: [] };
+          setProjects(res.data);
+        } else {
+          const res = await axios.get('/api/projects');
+          setProjects(res.data);
+        }
+      } catch (error) {
+        console.error('Error loading dashboard:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [user.role, user.id]);
 
-  const adminStatCards = [
-    {
-      title: 'Total Employees',
-      value: stats.total_employees,
-      icon: FaUsers,
-      color: 'bg-blue-500',
-      textColor: 'text-blue-600',
-      bgColor: 'bg-blue-100'
-    },
-    {
-      title: 'Active Projects',
-      value: stats.total_projects,
-      icon: FaProjectDiagram,
-      color: 'bg-green-500',
-      textColor: 'text-green-600',
-      bgColor: 'bg-green-100'
-    },
-    {
-      title: 'Total Tasks',
-      value: stats.total_tasks,
-      icon: FaTasks,
-      color: 'bg-purple-500',
-      textColor: 'text-purple-600',
-      bgColor: 'bg-purple-100'
-    },
-    {
-      title: 'Pending Tasks',
-      value: stats.pending_tasks,
-      icon: FaClock,
-      color: 'bg-yellow-500',
-      textColor: 'text-yellow-600',
-      bgColor: 'bg-yellow-100'
-    }
-  ];
-  
-  const employeeStatCards = [
-    {
-      title: 'Assigned Tasks',
-      value: employeeStats.assigned_tasks,
-      icon: FaTasks,
-      color: 'bg-blue-500',
-      textColor: 'text-blue-600',
-      bgColor: 'bg-blue-100'
-    },
-    {
-      title: 'Completed Tasks',
-      value: employeeStats.completed_tasks,
-      icon: FaCheck,
-      color: 'bg-green-500',
-      textColor: 'text-green-600',
-      bgColor: 'bg-green-100'
-    },
-    {
-      title: 'In Progress',
-      value: employeeStats.in_progress_tasks,
-      icon: FaClock,
-      color: 'bg-yellow-500',
-      textColor: 'text-yellow-600',
-      bgColor: 'bg-yellow-100'
-    },
-    {
-      title: 'Pending Tasks',
-      value: employeeStats.pending_tasks,
-      icon: FaClock,
-      color: 'bg-red-500',
-      textColor: 'text-red-600',
-      bgColor: 'bg-red-100'
-    }
-  ];
-  
-  // Choose which stat cards to display based on user role
-  const statCards = user.role === 'Employee' ? employeeStatCards : adminStatCards;
+  const count = (status) => tasks.filter((t) => t.status === status).length;
+  const today = startOfToday();
+  const openTasks = tasks
+    .filter((t) => t.status !== 'Completed')
+    .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+  const overdue = openTasks.filter((t) => t.deadline && new Date(t.deadline) < today).length;
 
-  const getGreeting = () => {
-    const hour = currentTime.getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 18) return 'Good Afternoon';
-    return 'Good Evening';
-  };
-  
-  const getRoleDisplay = () => {
-    switch (user.role) {
-      case 'Admin':
-        return 'Administrator';
-      case 'Manager':
-        return 'Project Manager';
-      case 'Employee':
-        return 'Team Member';
-      default:
-        return user.role;
-    }
-  };
+  const statItems = isEmployee
+    ? [
+        { label: 'Assigned to you', value: tasks.length, note: `${count('Completed')} completed` },
+        { label: 'In progress', value: count('In Progress') },
+        { label: 'Not started', value: count('Pending') },
+        { label: 'Overdue', value: overdue, note: overdue ? 'Past their deadline' : 'Nothing late' },
+      ]
+    : [
+        { label: 'Employees', value: stats?.total_employees ?? 0, note: 'On the payroll' },
+        {
+          label: 'Projects',
+          value: stats?.total_projects ?? 0,
+          note: `${projects.filter((p) => projectStatus(p) === 'Active').length} active`,
+        },
+        { label: 'Tasks', value: stats?.total_tasks ?? 0, note: `${count('Completed')} completed` },
+        { label: 'Overdue tasks', value: overdue, note: `${count('In Progress')} in progress` },
+      ];
 
   return (
-    <div className="bg-white">
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Logo size="small" />
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                {getGreeting()}, {user?.first_name}!
-              </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Welcome to your {getRoleDisplay()} dashboard
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-semibold text-gray-900">
-              {currentTime.toLocaleTimeString()}
-            </div>
-            <p className="text-sm text-gray-500">
-              {currentTime.toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </p>
-          </div>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="page-title">{isEmployee ? 'Your work' : 'Overview'}</h1>
+        <p className="mt-1 text-[13px] text-gray-500">
+          {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+          {' · '}
+          {user.first_name} {user.last_name}, {ROLE_NAMES[user.role] ?? user.role}
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 mb-8 lg:grid-cols-4">
-        {statCards.map((card, index) => (
-          <div
-            key={index}
-            className="p-6 bg-white rounded-lg border border-gray-100 hover:shadow-lg transition-shadow duration-200"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">{card.title}</p>
-                <p className={`text-2xl font-bold ${card.textColor}`}>
-                  {loading ? '...' : card.value}
-                </p>
-              </div>
-              <div className={`p-3 rounded-full ${card.bgColor}`}>
-                <card.icon className={`w-6 h-6 ${card.textColor}`} />
-              </div>
-            </div>
-          </div>
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-gray-200 bg-gray-200 lg:grid-cols-4">
+        {statItems.map((item) => (
+          <Stat key={item.label} {...item} loading={loading} />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="p-6 bg-white rounded-lg border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 gap-4">
-            {user.role === 'Admin' && (
-              <button
-                onClick={() => navigate('/employees')}
-                className="p-4 text-left rounded-lg border border-gray-200 hover:bg-gray-50"
-              >
-                <FaUsers className="w-6 h-6 text-blue-500 mb-2" />
-                <h3 className="font-medium">Manage Employees</h3>
-                <p className="text-sm text-gray-500">Add, edit, or remove employees</p>
-              </button>
-            )}
-            
-            {(user.role === 'Admin' || user.role === 'Manager') && (
-              <button
-                onClick={() => navigate('/projects')}
-                className="p-4 text-left rounded-lg border border-gray-200 hover:bg-gray-50"
-              >
-                <FaProjectDiagram className="w-6 h-6 text-green-500 mb-2" />
-                <h3 className="font-medium">View Projects</h3>
-                <p className="text-sm text-gray-500">Check project status and details</p>
-              </button>
-            )}
-
-            {(user.role === 'Admin' || user.role === 'Manager') && (
-              <button
-                onClick={() => navigate('/tasks')}
-                className="p-4 text-left rounded-lg border border-gray-200 hover:bg-gray-50"
-              >
-                <FaTasks className="w-6 h-6 text-purple-500 mb-2" />
-                <h3 className="font-medium">Manage Tasks</h3>
-                <p className="text-sm text-gray-500">Assign and track tasks</p>
-              </button>
-            )}
-
-            {user.role === 'Admin' && (
-              <button
-                onClick={() => navigate('/payroll')}
-                className="p-4 text-left rounded-lg border border-gray-200 hover:bg-gray-50"
-              >
-                <FaMoneyBillWave className="w-6 h-6 text-yellow-500 mb-2" />
-                <h3 className="font-medium">Payroll</h3>
-                <p className="text-sm text-gray-500">Manage employee salaries</p>
-              </button>
-            )}
-
-            {user.role === 'Admin' && (
-              <button
-                onClick={() => navigate('/attendance')}
-                className="p-4 text-left rounded-lg border border-gray-200 hover:bg-gray-50"
-              >
-                <FaCalendarAlt className="w-6 h-6 text-red-500 mb-2" />
-                <h3 className="font-medium">Attendance</h3>
-                <p className="text-sm text-gray-500">Track employee attendance</p>
-              </button>
-            )}
-
-            {user.role === 'Admin' && (
-              <button
-                onClick={() => navigate('/reports')}
-                className="p-4 text-left rounded-lg border border-gray-200 hover:bg-gray-50"
-              >
-                <FaFileAlt className="w-6 h-6 text-indigo-500 mb-2" />
-                <h3 className="font-medium">Reports</h3>
-                <p className="text-sm text-gray-500">Generate system reports</p>
-              </button>
-            )}
-
-            {user.role === 'Employee' && (
-              <button
-                onClick={() => navigate('/tasks')}
-                className="p-4 text-left rounded-lg border border-gray-200 hover:bg-gray-50"
-              >
-                <FaTasks className="w-6 h-6 text-purple-500 mb-2" />
-                <h3 className="font-medium">My Tasks</h3>
-                <p className="text-sm text-gray-500">View and update your tasks</p>
-              </button>
-            )}
-
-            {user.role === 'Employee' && (
-              <button
-                onClick={() => navigate('/attendance')}
-                className="p-4 text-left rounded-lg border border-gray-200 hover:bg-gray-50"
-              >
-                <FaCalendarAlt className="w-6 h-6 text-red-500 mb-2" />
-                <h3 className="font-medium">Attendance</h3>
-                <p className="text-sm text-gray-500">Mark your attendance</p>
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="p-6 bg-white rounded-lg border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {user.role === 'Employee' ? 'My Progress' : 'System Overview'}
-          </h2>
-          <div className="space-y-4">
-            {user.role === 'Employee' ? (
-              <>
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Task Completion Rate</p>
-                    <p className="text-lg font-semibold text-gray-900">
-                      {loading ? '...' : 
-                        `${Math.round((employeeStats.completed_tasks / employeeStats.assigned_tasks) * 100 || 0)}%`
-                      }
-                    </p>
-                  </div>
-                  <div className="w-16 h-16">
-                    <div className="w-full h-full rounded-full border-4 border-green-500 flex items-center justify-center">
-                      <FaTasks className="w-8 h-8 text-green-500" />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Tasks In Progress</p>
-                    <p className="text-lg font-semibold text-gray-900">
-                      {loading ? '...' : employeeStats.in_progress_tasks}
-                    </p>
-                  </div>
-                  <div className="w-16 h-16">
-                    <div className="w-full h-full rounded-full border-4 border-yellow-500 flex items-center justify-center">
-                      <FaClock className="w-8 h-8 text-yellow-500" />
-                    </div>
-                  </div>
-                </div>
-              </>
+      <div className={`grid grid-cols-1 gap-6 ${isEmployee ? '' : 'lg:grid-cols-3'}`}>
+        <div className={isEmployee ? '' : 'lg:col-span-2'}>
+          <Panel title={isEmployee ? 'Your open tasks' : 'Open tasks'} to="/tasks">
+            {loading ? (
+              <p className="px-4 py-8 text-center text-[13px] text-gray-500">Loading…</p>
+            ) : openTasks.length === 0 ? (
+              <p className="px-4 py-8 text-center text-[13px] text-gray-500">No open tasks.</p>
             ) : (
-              <>
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Task Completion Rate</p>
-                    <p className="text-lg font-semibold text-gray-900">
-                      {loading ? '...' : 
-                        `${Math.round((stats.total_tasks - stats.pending_tasks) / stats.total_tasks * 100 || 0)}%`
-                      }
-                    </p>
-                  </div>
-                  <div className="w-16 h-16">
-                    <div className="w-full h-full rounded-full border-4 border-green-500 flex items-center justify-center">
-                      <FaTasks className="w-8 h-8 text-green-500" />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-50">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Active Projects</p>
-                    <p className="text-lg font-semibold text-gray-900">
-                      {loading ? '...' : stats.total_projects}
-                    </p>
-                  </div>
-                  <div className="w-16 h-16">
-                    <div className="w-full h-full rounded-full border-4 border-blue-500 flex items-center justify-center">
-                      <FaProjectDiagram className="w-8 h-8 text-blue-500" />
-                    </div>
-                  </div>
-                </div>
-              </>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-[13px]">
+                  <thead>
+                    <tr className="text-xs text-gray-500">
+                      <th className="px-4 py-2 font-medium">Task</th>
+                      {!isEmployee && <th className="px-4 py-2 font-medium">Assignee</th>}
+                      <th className="px-4 py-2 font-medium">Priority</th>
+                      <th className="px-4 py-2 font-medium">Due</th>
+                      <th className="px-4 py-2 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {openTasks.slice(0, 6).map((task) => {
+                      const late = task.deadline && new Date(task.deadline) < today;
+                      return (
+                        <tr key={task.task_id}>
+                          <td className="px-4 py-2.5">
+                            <p className="font-medium text-gray-900">{task.task_name}</p>
+                            <p className="text-xs text-gray-500">{task.project_name}</p>
+                          </td>
+                          {!isEmployee && (
+                            <td className="whitespace-nowrap px-4 py-2.5 text-gray-700">
+                              {task.assigned_to_first_name} {task.assigned_to_last_name}
+                            </td>
+                          )}
+                          <td className="px-4 py-2.5">
+                            <PriorityLabel priority={task.priority} />
+                          </td>
+                          <td className={`whitespace-nowrap px-4 py-2.5 tabular-nums ${late ? 'font-medium text-red-700' : 'text-gray-700'}`}>
+                            {formatDate(task.deadline)}
+                            {late && <span className="ml-1 text-xs font-normal">(late)</span>}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <StatusLabel status={task.status} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </div>
+          </Panel>
         </div>
+
+        {!isEmployee && (
+          <Panel title={user.role === 'Manager' ? 'Your projects' : 'Projects'} to="/projects">
+            {loading ? (
+              <p className="px-4 py-8 text-center text-[13px] text-gray-500">Loading…</p>
+            ) : projects.length === 0 ? (
+              <p className="px-4 py-8 text-center text-[13px] text-gray-500">No projects yet.</p>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {projects.slice(0, 5).map((project) => (
+                  <li key={project.project_id} className="flex items-start justify-between gap-3 px-4 py-2.5">
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-medium text-gray-900">{project.project_name}</p>
+                      <p className="text-xs text-gray-500">
+                        {project.end_date ? `Due ${formatDate(project.end_date)}` : 'No end date'}
+                      </p>
+                    </div>
+                    <StatusLabel status={projectStatus(project)} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+        )}
       </div>
     </div>
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

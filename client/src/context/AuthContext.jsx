@@ -24,11 +24,14 @@ export const AuthProvider = ({ children }) => {
     setIsLoading(false);
   }, []);
 
-  const login = async (email, password) => {
+  // portal is the login tab used: 'admin' or 'user'. The backend rejects
+  // accounts whose role doesn't belong on that tab.
+  const login = async (email, password, portal) => {
     try {
-      const response = await axios.post('http://localhost:5000/api/login', {
+      const response = await axios.post('/api/login', {
         email,
-        password
+        password,
+        portal
       });
 
       if (response.data.error) {

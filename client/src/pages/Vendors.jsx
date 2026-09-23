@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import DataTable from '../components/DataTable';
 import FormModal from '../components/FormModal';
-import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 const Vendors = () => {
@@ -10,7 +9,6 @@ const Vendors = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -23,7 +21,7 @@ const Vendors = () => {
   const fetchVendors = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get('http://localhost:5000/api/vendors');
+      const response = await axios.get('/api/vendors');
       setVendors(response.data);
     } catch (error) {
       toast.error('Error fetching vendors');
@@ -64,7 +62,7 @@ const Vendors = () => {
   const handleDelete = async (vendor) => {
     if (window.confirm('Are you sure you want to delete this vendor?')) {
       try {
-        const response = await axios.delete(`http://localhost:5000/api/vendors/${vendor.vendor_id}`);
+        const response = await axios.delete(`/api/vendors/${vendor.vendor_id}`);
         if (response.data.error) {
           throw new Error(response.data.error);
         }
@@ -104,7 +102,7 @@ const Vendors = () => {
 
       if (selectedVendor) {
         const response = await axios.put(
-          `http://localhost:5000/api/vendors/${selectedVendor.vendor_id}`,
+          `/api/vendors/${selectedVendor.vendor_id}`,
           formData
         );
         if (response.data.error) {
@@ -112,7 +110,7 @@ const Vendors = () => {
         }
         toast.success('Vendor updated successfully');
       } else {
-        const response = await axios.post('http://localhost:5000/api/vendors', formData);
+        const response = await axios.post('/api/vendors', formData);
         if (response.data.error) {
           throw new Error(response.data.error);
         }
@@ -127,7 +125,7 @@ const Vendors = () => {
   };
 
   const columns = [
-    { key: 'name', label: 'Contact Name' },
+    { key: 'name', label: 'Contact name' },
     { key: 'company_name', label: 'Company' },
     { key: 'email', label: 'Email' },
     { key: 'phone', label: 'Phone' },
@@ -135,15 +133,16 @@ const Vendors = () => {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div>
       <DataTable
+        isLoading={isLoading}
         columns={columns}
         data={vendors}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onAdd={handleAdd}
         title="Vendors"
-        addButtonText="Add Vendor"
+        addButtonText="Add vendor"
       />
 
       <FormModal

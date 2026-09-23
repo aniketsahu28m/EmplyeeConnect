@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import AuthShell from '../components/AuthShell';
+
+const MIN_PASSWORD_LENGTH = 6;
 
 const SignUp = () => {
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -14,12 +18,18 @@ const SignUp = () => {
     role: 'Employee'
   });
 
+  const update = (field) => (e) => setFormData({ ...formData, [field]: e.target.value });
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate form data
+
     if (!formData.first_name || !formData.last_name || !formData.email || !formData.password) {
       toast.error('All fields are required');
+      return;
+    }
+
+    if (formData.password.length < MIN_PASSWORD_LENGTH) {
+      toast.error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
       return;
     }
 
@@ -28,8 +38,9 @@ const SignUp = () => {
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/signup', {
+      const response = await axios.post('/api/signup', {
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
@@ -41,155 +52,117 @@ const SignUp = () => {
         throw new Error(response.data.error);
       }
 
-      toast.success('Account created successfully! Please login.');
+      toast.success('Account created. You can sign in now.');
       navigate('/login');
     } catch (error) {
       console.error('Error:', error);
       toast.error(error.response?.data?.error || 'Error creating account');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
-          </h2>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="first_name" className="sr-only">
-                First Name
-              </label>
-              <input
-                id="first_name"
-                name="first_name"
-                type="text"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="First Name"
-                value={formData.first_name}
-                onChange={(e) =>
-                  setFormData({ ...formData, first_name: e.target.value })
-                }
-              />
-            </div>
-            <div>
-              <label htmlFor="last_name" className="sr-only">
-                Last Name
-              </label>
-              <input
-                id="last_name"
-                name="last_name"
-                type="text"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Last Name"
-                value={formData.last_name}
-                onChange={(e) =>
-                  setFormData({ ...formData, last_name: e.target.value })
-                }
-              />
-            </div>
-            <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-              />
-            </div>
-            <div>
-              <label htmlFor="confirm_password" className="sr-only">
-                Confirm Password
-              </label>
-              <input
-                id="confirm_password"
-                name="confirm_password"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Confirm Password"
-                value={formData.confirm_password}
-                onChange={(e) =>
-                  setFormData({ ...formData, confirm_password: e.target.value })
-                }
-              />
-            </div>
-            <div>
-              <label htmlFor="role" className="sr-only">
-                Role
-              </label>
-              <select
-                id="role"
-                name="role"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                value={formData.role}
-                onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value })
-                }
-              >
-                <option value="Employee">Employee</option>
-                <option value="Manager">Manager</option>
-              </select>
-            </div>
-          </div>
+  const labelClass = 'mb-1 block text-[13px] font-medium text-gray-800';
 
+  return (
+    <AuthShell
+      footer={
+        <>
+          Already have an account?{' '}
+          <Link to="/login" className="font-medium text-blue-700 hover:underline">
+            Sign in
+          </Link>
+        </>
+      }
+    >
+      <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Create an account</h1>
+      <p className="mt-1.5 text-[13px] text-gray-500">
+        For managers and employees. Administrator accounts can’t be created here.
+      </p>
+
+      <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <button
-              type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Sign up
-            </button>
+            <label htmlFor="first_name" className={labelClass}>First name</label>
+            <input
+              id="first_name"
+              type="text"
+              autoComplete="given-name"
+              required
+              className="w-full"
+              value={formData.first_name}
+              onChange={update('first_name')}
+            />
           </div>
-        </form>
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            Already have an account?{' '}
-            <button
-              onClick={() => navigate('/login')}
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              Sign in
-            </button>
-          </p>
+          <div>
+            <label htmlFor="last_name" className={labelClass}>Last name</label>
+            <input
+              id="last_name"
+              type="text"
+              autoComplete="family-name"
+              required
+              className="w-full"
+              value={formData.last_name}
+              onChange={update('last_name')}
+            />
+          </div>
         </div>
-      </div>
-    </div>
+
+        <div>
+          <label htmlFor="email" className={labelClass}>Email address</label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            className="w-full"
+            value={formData.email}
+            onChange={update('email')}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="password" className={labelClass}>Password</label>
+            <input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={MIN_PASSWORD_LENGTH}
+              className="w-full"
+              value={formData.password}
+              onChange={update('password')}
+            />
+          </div>
+          <div>
+            <label htmlFor="confirm_password" className={labelClass}>Confirm password</label>
+            <input
+              id="confirm_password"
+              type="password"
+              autoComplete="new-password"
+              required
+              className="w-full"
+              value={formData.confirm_password}
+              onChange={update('confirm_password')}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="role" className={labelClass}>Role</label>
+          <select id="role" required className="w-full" value={formData.role} onChange={update('role')}>
+            <option value="Employee">Employee</option>
+            <option value="Manager">Manager</option>
+          </select>
+        </div>
+
+        <button type="submit" disabled={isSubmitting} className="btn-primary h-9 w-full">
+          {isSubmitting ? 'Creating account…' : 'Create account'}
+        </button>
+      </form>
+    </AuthShell>
   );
 };
 
-export default SignUp; 
+export default SignUp;

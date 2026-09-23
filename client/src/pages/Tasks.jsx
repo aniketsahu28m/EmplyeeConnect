@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import DataTable from '../components/DataTable';
 import FormModal from '../components/FormModal';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { FaCheckCircle, FaClock, FaExclamationCircle } from 'react-icons/fa';
+import { StatusLabel, PriorityLabel } from '../components/StatusLabel';
 
 const Tasks = () => {
   const [tasks, setTasks] = useState([]);
@@ -26,55 +26,19 @@ const Tasks = () => {
   });
 
   const formatDate = (dateString) => {
+    if (!dateString) return '—';
     const date = new Date(dateString);
-    return date.toLocaleDateString();
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  const getPriorityBadge = (priority) => {
-    switch (priority) {
-      case 'High':
-        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">High</span>;
-      case 'Medium':
-        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Medium</span>;
-      case 'Low':
-        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Low</span>;
-      default:
-        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">{priority}</span>;
-    }
-  };
+  const getPriorityBadge = (priority) => <PriorityLabel priority={priority} />;
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Completed':
-        return (
-          <div className="flex items-center">
-            <FaCheckCircle className="text-green-500 mr-1" />
-            <span className="text-green-800">Completed</span>
-          </div>
-        );
-      case 'In Progress':
-        return (
-          <div className="flex items-center">
-            <FaClock className="text-yellow-500 mr-1" />
-            <span className="text-yellow-800">In Progress</span>
-          </div>
-        );
-      case 'Pending':
-        return (
-          <div className="flex items-center">
-            <FaExclamationCircle className="text-red-500 mr-1" />
-            <span className="text-red-800">Pending</span>
-          </div>
-        );
-      default:
-        return <span>{status}</span>;
-    }
-  };
+  const getStatusBadge = (status) => <StatusLabel status={status} />;
 
   // Define columns based on user role
   const getColumns = () => {
     const baseColumns = [
-    { key: 'task_name', label: 'Task Name' },
+    { key: 'task_name', label: 'Task name' },
     { key: 'project_name', label: 'Project' },
       { key: 'deadline', label: 'Deadline', render: (item) => formatDate(item.deadline) },
       { key: 'priority', label: 'Priority', render: (item) => getPriorityBadge(item.priority) },
@@ -85,7 +49,7 @@ const Tasks = () => {
     if (user.role !== 'Employee') {
       baseColumns.splice(2, 0, {
       key: 'assigned_to', 
-      label: 'Assigned To',
+      label: 'Assigned to',
       render: (item) => `${item.assigned_to_first_name} ${item.assigned_to_last_name}`
       });
     }
@@ -93,24 +57,24 @@ const Tasks = () => {
     return baseColumns;
   };
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     setIsLoading(true);
     try {
       // Check if user is an employee (not admin or manager)
       if (user.role === 'Employee') {
         // Find the employee ID for this user
-        const employeeRes = await axios.get('http://localhost:5000/api/employees');
+        const employeeRes = await axios.get('/api/employees');
         const currentEmployee = employeeRes.data.find(emp => emp.user_id === user.id);
         
         if (currentEmployee) {
           // Get only tasks assigned to this employee
-          const response = await axios.get(`http://localhost:5000/api/tasks/employee/${currentEmployee.employee_id}`);
+          const response = await axios.get(`/api/tasks/employee/${currentEmployee.employee_id}`);
           setTasks(response.data);
         }
       } else {
         // Admin or manager can see all tasks
-      const response = await axios.get('http://localhost:5000/api/tasks');
-      setTasks(response.data);
+        const response = await axios.get('/api/tasks');
+        setTasks(response.data);
       }
     } catch (error) {
       toast.error('Error fetching tasks');
@@ -118,11 +82,11 @@ const Tasks = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user.role, user.id]);
 
   const fetchProjects = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/projects');
+      const response = await axios.get('/api/projects');
       setProjects(response.data);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -131,7 +95,7 @@ const Tasks = () => {
 
   const fetchEmployees = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/employees');
+      const response = await axios.get('/api/employees');
       setEmployees(response.data);
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -144,7 +108,7 @@ const Tasks = () => {
       fetchProjects();
       fetchEmployees();
     }
-  }, [user.role]);
+  }, [user.role, fetchTasks]);
 
   const handleAdd = () => {
     setSelectedTask(null);
@@ -194,7 +158,7 @@ const Tasks = () => {
   const handleDelete = async (task) => {
     if (window.confirm('Are you sure you want to delete this task?')) {
       try {
-        const response = await axios.delete(`http://localhost:5000/api/tasks/${task.task_id}`);
+        const response = await axios.delete(`/api/tasks/${task.task_id}`);
         if (response.data.error) {
           throw new Error(response.data.error);
         }
@@ -232,7 +196,7 @@ const Tasks = () => {
         if (user.role === 'Employee') {
           // Employees can only update status
           const response = await axios.put(
-            `http://localhost:5000/api/tasks/${selectedTask.task_id}`,
+            `/api/tasks/${selectedTask.task_id}`,
             { status: formData.status }
           );
           if (response.data.error) {
@@ -241,7 +205,7 @@ const Tasks = () => {
         } else {
           // Managers and admins can update all fields
           const response = await axios.put(
-            `http://localhost:5000/api/tasks/${selectedTask.task_id}`,
+            `/api/tasks/${selectedTask.task_id}`,
             formData
           );
           if (response.data.error) {
@@ -250,7 +214,7 @@ const Tasks = () => {
         }
         toast.success('Task updated successfully');
       } else {
-        const response = await axios.post('http://localhost:5000/api/tasks', formData);
+        const response = await axios.post('/api/tasks', formData);
         if (response.data.error) {
           throw new Error(response.data.error);
         }
@@ -462,22 +426,17 @@ const Tasks = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Tasks</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {user.role === 'Employee' 
-            ? 'View and update your assigned tasks' 
-            : 'Manage your organization\'s tasks'}
-        </p>
-      </div>
-
       <DataTable
+        subtitle={user.role === 'Employee'
+          ? 'Tasks assigned to you. Edit one to update its status.'
+          : 'Every task across all projects.'}
         columns={getColumns()}
         data={tasks}
         onEdit={canEdit ? handleEdit : null}
         onDelete={canDelete ? handleDelete : null}
         onAdd={canAdd ? handleAdd : null}
-        title={user.role === 'Employee' ? 'My Tasks' : 'Task List'}
+        title={user.role === 'Employee' ? 'My tasks' : 'Tasks'}
+        addButtonText="New task"
         isLoading={isLoading}
       />
 

@@ -1,22 +1,33 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import Logo from '../components/Logo';
+import AuthShell from '../components/AuthShell';
+
+const PORTALS = {
+  user: {
+    label: 'Staff',
+    hint: 'Managers and employees sign in here.',
+    submit: 'Sign in',
+  },
+  admin: {
+    label: 'Administrator',
+    hint: 'Only administrator accounts can sign in here.',
+    submit: 'Sign in as administrator',
+  },
+};
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isAdminMode, setIsAdminMode] = useState(false);
-  const [fadeIn, setFadeIn] = useState(false);
+  const [portal, setPortal] = useState('user');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const current = PORTALS[portal];
 
   useEffect(() => {
-    // Animation on mount
-    setFadeIn(true);
-    
-    // If user is already authenticated, redirect to dashboard
     if (isAuthenticated) {
       navigate('/');
     }
@@ -24,149 +35,106 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
-      await login(email, password);
+      await login(email, password, portal);
       navigate('/');
-      toast.success('Login successful!');
     } catch (error) {
       toast.error(error.response?.data?.error || 'Invalid email or password');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const toggleMode = () => {
-    setFadeIn(false);
-    setTimeout(() => {
-      setIsAdminMode(!isAdminMode);
-      setFadeIn(true);
-    }, 300);
-  };
-
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-gray-50 to-gray-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return <div className="min-h-screen bg-canvas" />;
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-gray-50 to-gray-100 relative overflow-hidden">
-      {/* Background Logo Watermark */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
-        <Logo size="large" className="w-96 h-96" />
+    <AuthShell
+      footer={
+        portal === 'user' && (
+          <>
+            New here?{' '}
+            <Link to="/signup" className="font-medium text-blue-700 hover:underline">
+              Create an account
+            </Link>
+          </>
+        )
+      }
+    >
+      <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Sign in</h1>
+
+      <div className="mt-6 flex border-b border-gray-200" role="tablist">
+        {Object.entries(PORTALS).map(([key, option]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={portal === key}
+            onClick={() => setPortal(key)}
+            className={`-mb-px border-b-2 px-1 pb-2 text-[13px] font-medium transition-colors [&:not(:first-child)]:ml-5 ${
+              portal === key
+                ? 'border-gray-900 text-gray-900'
+                : 'border-transparent text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
+      <p className="mt-3 text-[13px] text-gray-500">{current.hint}</p>
 
-      <div 
-        className={`w-full max-w-md px-4 sm:px-0 transition-opacity duration-500 ease-in-out ${fadeIn ? 'opacity-100' : 'opacity-0'} relative z-10`}
-      >
-        <div className="bg-white rounded-lg border border-gray-200 shadow-lg p-8 transition-all duration-300 hover:shadow-xl">
-          <div className="text-center mb-6">
-            <div className="flex justify-center mb-4">
-              <Logo size="medium" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900">EmployeeConnect</h1>
-            <p className="mt-2 text-gray-600 font-light">
-              Sign in to your {isAdminMode ? 'admin' : 'user'} workspace
-            </p>
-          </div>
-          
-          <div className="mb-6">
-            <div className="flex p-1 bg-gray-100 rounded-lg w-full max-w-xs mx-auto">
-              <button
-                type="button"
-                onClick={() => !isAdminMode || toggleMode()}
-                className={`w-1/2 py-2 text-sm font-medium rounded-md transition-all duration-200 ${!isAdminMode ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                User
-              </button>
-              <button
-                type="button"
-                onClick={() => isAdminMode || toggleMode()}
-                className={`w-1/2 py-2 text-sm font-medium rounded-md transition-all duration-200 ${isAdminMode ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                Admin
-              </button>
-            </div>
-          </div>
-          
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div className="space-y-5">
-              <div className="transform transition-all duration-300 ease-out hover:translate-y-[-2px]">
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Address
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 rounded-md border border-gray-300 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all duration-200 ease-in-out"
-                  placeholder={isAdminMode ? "admin@company.com" : "your@email.com"}
-                />
-              </div>
-              
-              <div className="transform transition-all duration-300 ease-out hover:translate-y-[-2px]">
-                <div className="flex items-center justify-between mb-1">
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                    Password
-                  </label>
-                  <a href="#" className="text-xs font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200">
-                    Forgot password?
-                  </a>
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-md border border-gray-300 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all duration-200 ease-in-out"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-
-            <div className="transform transition-all duration-300 ease-out hover:scale-[1.01]">
-              <button
-                type="submit"
-                className="w-full py-3 px-4 rounded-md font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-all duration-200"
-              >
-                {isAdminMode ? 'Sign in as Admin' : 'Sign in'}
-              </button>
-            </div>
-            
-            <div className="text-center text-sm text-gray-500">
-              <p>Need help? <a href="#" className="font-medium text-blue-600 hover:text-blue-500 transition-colors duration-200">Contact support</a></p>
-            </div>
-          </form>
-        </div>
-        
-        <div className="mt-4 text-center text-xs text-gray-500 transition-opacity duration-500 ease-in-out">
-          <p>© 2025 EmployeeConnect. All rights reserved.</p>
-          <p>Made by Aniket, Aryan and Varun</p>
+      <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+        <div>
+          <label htmlFor="email" className="mb-1 block text-[13px] font-medium text-gray-800">
+            Email
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full"
+          />
         </div>
 
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
+        <div>
+          <div className="mb-1 flex items-baseline justify-between">
+            <label htmlFor="password" className="block text-[13px] font-medium text-gray-800">
+              Password
+            </label>
             <button
-              onClick={() => navigate('/signup')}
-              className="font-medium text-blue-600 hover:text-blue-500"
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="text-xs text-gray-500 hover:text-gray-800"
             >
-              Sign up
+              {showPassword ? 'Hide' : 'Show'}
             </button>
+          </div>
+          <input
+            id="password"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full"
+          />
+          <p className="mt-1.5 text-xs text-gray-500">
+            Forgot your password? Ask your administrator.
           </p>
         </div>
-      </div>
-    </div>
+
+        <button type="submit" disabled={isSubmitting} className="btn-primary h-9 w-full">
+          {isSubmitting ? 'Signing in…' : current.submit}
+        </button>
+      </form>
+    </AuthShell>
   );
 };
 

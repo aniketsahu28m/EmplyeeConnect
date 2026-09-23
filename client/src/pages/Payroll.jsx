@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import DataTable from '../components/DataTable';
 import FormModal from '../components/FormModal';
-import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { FaCheckCircle, FaClock } from 'react-icons/fa';
+import { StatusLabel } from '../components/StatusLabel';
 
 const Payroll = () => {
   const [payroll, setPayroll] = useState([]);
@@ -12,7 +11,6 @@ const Payroll = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
 
   const [formData, setFormData] = useState({
     employee_id: '',
@@ -29,31 +27,14 @@ const Payroll = () => {
     }).format(amount);
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Paid':
-        return (
-          <div className="flex items-center">
-            <FaCheckCircle className="text-green-500 mr-1" />
-            <span className="text-green-800">Paid</span>
-          </div>
-        );
-      case 'Pending':
-        return (
-          <div className="flex items-center">
-            <FaClock className="text-yellow-500 mr-1" />
-            <span className="text-yellow-800">Pending</span>
-          </div>
-        );
-      default:
-        return <span>{status}</span>;
-    }
-  };
+  const getStatusBadge = (status) => (
+    <StatusLabel status={status} tone={status === 'Paid' ? 'green' : 'yellow'} />
+  );
 
   const fetchPayroll = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get('http://localhost:5000/api/payroll');
+      const response = await axios.get('/api/payroll');
       setPayroll(response.data);
     } catch (error) {
       toast.error('Error fetching payroll records');
@@ -65,7 +46,7 @@ const Payroll = () => {
 
   const fetchEmployees = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/employees');
+      const response = await axios.get('/api/employees');
       setEmployees(response.data);
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -104,7 +85,7 @@ const Payroll = () => {
   const handleDelete = async (record) => {
     if (window.confirm('Are you sure you want to delete this payroll record?')) {
       try {
-        const response = await axios.delete(`http://localhost:5000/api/payroll/${record.payroll_id}`);
+        const response = await axios.delete(`/api/payroll/${record.payroll_id}`);
         if (response.data.error) {
           throw new Error(response.data.error);
         }
@@ -136,7 +117,7 @@ const Payroll = () => {
 
       if (selectedRecord) {
         const response = await axios.put(
-          `http://localhost:5000/api/payroll/${selectedRecord.payroll_id}`,
+          `/api/payroll/${selectedRecord.payroll_id}`,
           formData
         );
         if (response.data.error) {
@@ -144,7 +125,7 @@ const Payroll = () => {
         }
         toast.success('Payroll record updated successfully');
       } else {
-        const response = await axios.post('http://localhost:5000/api/payroll', formData);
+        const response = await axios.post('/api/payroll', formData);
         if (response.data.error) {
           throw new Error(response.data.error);
         }
@@ -163,22 +144,23 @@ const Payroll = () => {
     { key: 'department', label: 'Department' },
     { key: 'designation', label: 'Designation' },
     { key: 'salary_month', label: 'Month' },
-    { key: 'basic_salary', label: 'Basic Salary', render: (item) => formatCurrency(item.basic_salary) },
+    { key: 'basic_salary', label: 'Basic salary', render: (item) => formatCurrency(item.basic_salary) },
     { key: 'deductions', label: 'Deductions', render: (item) => formatCurrency(item.deductions) },
-    { key: 'net_salary', label: 'Net Salary', render: (item) => formatCurrency(item.net_salary) },
+    { key: 'net_salary', label: 'Net salary', render: (item) => formatCurrency(item.net_salary) },
     { key: 'payment_status', label: 'Status', render: (item) => getStatusBadge(item.payment_status) }
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div>
       <DataTable
+        isLoading={isLoading}
         columns={columns}
         data={payroll}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onAdd={handleAdd}
-        title="Payroll Records"
-        addButtonText="Add Payroll"
+        title="Payroll"
+        addButtonText="Add payroll entry"
       />
 
       <FormModal

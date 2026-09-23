@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
-import DataTable from '../components/DataTable';
 import FormModal from '../components/FormModal';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { FaCalendarAlt, FaProjectDiagram, FaTasks, FaUserTie } from 'react-icons/fa';
+import { LuPlus, LuPencil, LuTrash2 } from 'react-icons/lu';
+import { StatusLabel } from '../components/StatusLabel';
 
 const Projects = () => {
   const [projects, setProjects] = useState([]);
@@ -23,54 +24,39 @@ const Projects = () => {
   });
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'Not Set';
+    if (!dateString) return '—';
     const date = new Date(dateString);
-    return date.toLocaleDateString();
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  const columns = [
-    { key: 'project_name', label: 'Project Name' },
-    { key: 'manager_name', label: 'Manager' },
-    { key: 'start_date', label: 'Start Date', render: (item) => formatDate(item.start_date) },
-    { key: 'end_date', label: 'End Date', render: (item) => formatDate(item.end_date) },
-    { 
-      key: 'status', 
-      label: 'Status', 
-      render: (item) => {
-        const now = new Date();
-        const startDate = new Date(item.start_date);
-        const endDate = item.end_date ? new Date(item.end_date) : null;
-        
-        if (endDate && now > endDate) {
-          return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Completed</span>;
-        } else if (now >= startDate && (!endDate || now <= endDate)) {
-          return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Active</span>;
-        } else if (now < startDate) {
-          return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Upcoming</span>;
-        }
-        
-        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Unknown</span>;
-      } 
-    }
-  ];
+  const getStatus = (project) => {
+    const now = new Date();
+    const startDate = new Date(project.start_date);
+    const endDate = project.end_date ? new Date(project.end_date) : null;
 
-  const fetchProjects = async () => {
+    if (endDate && now > endDate) return 'Completed';
+    if (now >= startDate && (!endDate || now <= endDate)) return 'Active';
+    if (now < startDate) return 'Upcoming';
+    return 'Unknown';
+  };
+
+  const fetchProjects = useCallback(async () => {
     setIsLoading(true);
     try {
       // Check if user is a manager
       if (user.role === 'Manager') {
         // Find the employee ID for this manager
-        const employeeRes = await axios.get('http://localhost:5000/api/employees');
+        const employeeRes = await axios.get('/api/employees');
         const currentEmployee = employeeRes.data.find(emp => emp.user_id === user.id);
         
         if (currentEmployee) {
           // Get only projects managed by this employee
-          const response = await axios.get(`http://localhost:5000/api/projects/manager/${currentEmployee.employee_id}`);
+          const response = await axios.get(`/api/projects/manager/${currentEmployee.employee_id}`);
           setProjects(response.data);
         }
       } else {
         // Admin or regular employee can see all projects
-        const response = await axios.get('http://localhost:5000/api/projects');
+        const response = await axios.get('/api/projects');
         setProjects(response.data);
       }
     } catch (error) {
@@ -79,11 +65,11 @@ const Projects = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user.role, user.id]);
 
   const fetchEmployees = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/employees');
+      const response = await axios.get('/api/employees');
       setEmployees(response.data);
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -93,7 +79,7 @@ const Projects = () => {
   useEffect(() => {
     fetchProjects();
     fetchEmployees();
-  }, []);
+  }, [fetchProjects]);
 
   const handleAdd = () => {
     setSelectedProject(null);
@@ -125,7 +111,7 @@ const Projects = () => {
   const handleDelete = async (project) => {
     if (window.confirm('Are you sure you want to delete this project?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/projects/${project.project_id}`);
+        await axios.delete(`/api/projects/${project.project_id}`);
         toast.success('Project deleted successfully');
         fetchProjects();
       } catch (error) {
@@ -144,12 +130,12 @@ const Projects = () => {
     try {
       if (selectedProject) {
         await axios.put(
-          `http://localhost:5000/api/projects/${selectedProject.project_id}`,
+          `/api/projects/${selectedProject.project_id}`,
           formData
         );
         toast.success('Project updated successfully');
       } else {
-        await axios.post('http://localhost:5000/api/projects', formData);
+        await axios.post('/api/projects', formData);
         toast.success('Project added successfully');
       }
       setIsModalOpen(false);
@@ -160,86 +146,75 @@ const Projects = () => {
     }
   };
 
-  // Render project cards instead of just using DataTable
   const renderProjectCards = () => {
+    if (projects.length === 0) {
+      return (
+        <div className="card px-6 py-12 text-center text-[13px] text-gray-500">
+          No projects yet.
+          {canAdd && (
+            <button onClick={handleAdd} className="ml-1 font-medium text-blue-700 hover:underline">
+              Create the first one.
+            </button>
+          )}
+        </div>
+      );
+    }
+
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {projects.map(project => (
-          <div key={project.project_id} className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="bg-blue-500 text-white p-4">
-              <h3 className="text-lg font-semibold">{project.project_name}</h3>
-              <p className="text-sm text-blue-100">
-                {project.manager_name ? `Manager: ${project.manager_name}` : 'No manager assigned'}
-              </p>
+          <article key={project.project_id} className="card flex flex-col p-4">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-[15px] font-semibold text-gray-900">{project.project_name}</h2>
+              <StatusLabel status={getStatus(project)} />
             </div>
-            <div className="p-4">
-              <p className="text-sm text-gray-600 mb-4">
-                {project.description || 'No description available'}
-              </p>
-              
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                <div className="flex items-center">
-                  <FaCalendarAlt className="text-gray-500 mr-2" />
-                  <div>
-                    <p className="text-xs text-gray-500">Start Date</p>
-                    <p className="text-sm font-medium">{formatDate(project.start_date)}</p>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <FaCalendarAlt className="text-gray-500 mr-2" />
-                  <div>
-                    <p className="text-xs text-gray-500">End Date</p>
-                    <p className="text-sm font-medium">{formatDate(project.end_date)}</p>
-                  </div>
-                </div>
+            <p className="mt-0.5 text-[13px] text-gray-500">
+              {project.manager_name ? `Led by ${project.manager_name}` : 'No manager assigned'}
+            </p>
+            <p className="mt-3 line-clamp-3 flex-1 text-[13px] leading-relaxed text-gray-700">
+              {project.description || <span className="text-gray-400">No description.</span>}
+            </p>
+
+            <dl className="mt-4 grid grid-cols-2 border-t border-gray-100 pt-3 text-[13px]">
+              <div>
+                <dt className="text-xs text-gray-500">Start</dt>
+                <dd className="tabular-nums text-gray-900">{formatDate(project.start_date)}</dd>
               </div>
-              
-              <div className="flex justify-between items-center">
-                {user && (user.role === 'Admin' || user.role === 'Manager') && (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(project)}
-                      className="px-3 py-1 text-xs font-medium rounded bg-blue-50 text-blue-600 hover:bg-blue-100"
-                    >
-                      Edit
-                    </button>
-                    {user.role === 'Admin' && (
-                      <button
-                        onClick={() => handleDelete(project)}
-                        className="px-3 py-1 text-xs font-medium rounded bg-red-50 text-red-600 hover:bg-red-100"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
+              <div>
+                <dt className="text-xs text-gray-500">End</dt>
+                <dd className="tabular-nums text-gray-900">{formatDate(project.end_date)}</dd>
+              </div>
+            </dl>
+
+            <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
+              <Link to="/tasks" className="text-[13px] font-medium text-blue-700 hover:underline">
+                View tasks
+              </Link>
+              <div className="flex">
+                {canEdit && (
+                  <button
+                    onClick={() => handleEdit(project)}
+                    className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                    title="Edit"
+                    aria-label="Edit project"
+                  >
+                    <LuPencil className="h-3.5 w-3.5" />
+                  </button>
                 )}
-                
-                <a 
-                  href={`/tasks?project=${project.project_id}`}
-                  className="flex items-center text-sm text-blue-600 hover:text-blue-800"
-                >
-                  <FaTasks className="mr-1" />
-                  View Tasks
-                </a>
+                {canDelete && (
+                  <button
+                    onClick={() => handleDelete(project)}
+                    className="rounded-md p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-700"
+                    title="Delete"
+                    aria-label="Delete project"
+                  >
+                    <LuTrash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             </div>
-          </div>
+          </article>
         ))}
-        
-        {projects.length === 0 && !isLoading && (
-          <div className="col-span-3 bg-white rounded-lg shadow p-8 text-center">
-            <FaProjectDiagram className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No projects found</p>
-            {user && user.role !== 'Employee' && (
-              <button
-                onClick={handleAdd}
-                className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-              >
-                Create Project
-              </button>
-            )}
-          </div>
-        )}
       </div>
     );
   };
@@ -250,29 +225,27 @@ const Projects = () => {
   const canDelete = user?.role === 'Admin';
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Projects</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Manage your organization's projects
+          <h1 className="page-title">
+            Projects
+            {!isLoading && <span className="ml-2 text-base font-normal text-gray-400">{projects.length}</span>}
+          </h1>
+          <p className="mt-1 text-[13px] text-gray-500">
+            {user.role === 'Manager' ? 'Projects you lead.' : 'All projects, with their lead and timeline.'}
           </p>
         </div>
-        
         {canAdd && (
-          <button
-            onClick={handleAdd}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-          >
-            Add Project
+          <button onClick={handleAdd} className="btn-primary">
+            <LuPlus className="h-3.5 w-3.5" />
+            New project
           </button>
         )}
       </div>
-      
+
       {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        </div>
+        <p className="py-12 text-center text-[13px] text-gray-500">Loading projects…</p>
       ) : (
         renderProjectCards()
       )}

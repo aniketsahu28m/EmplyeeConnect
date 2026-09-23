@@ -8,6 +8,7 @@ const Employees = () => {
   const [employees, setEmployees] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -20,8 +21,12 @@ const Employees = () => {
   });
 
   const columns = [
-    { key: 'first_name', label: 'First Name' },
-    { key: 'last_name', label: 'Last Name' },
+    {
+      key: 'first_name',
+      label: 'Name',
+      render: (item) => `${item.first_name} ${item.last_name}`,
+      searchValue: (item) => `${item.first_name} ${item.last_name}`,
+    },
     { key: 'email', label: 'Email' },
     { key: 'department', label: 'Department' },
     { key: 'designation', label: 'Designation' },
@@ -32,18 +37,23 @@ const Employees = () => {
     },
     {
       key: 'date_of_joining',
-      label: 'Date of Joining',
-      render: (item) => new Date(item.date_of_joining).toLocaleDateString(),
+      label: 'Joined',
+      render: (item) =>
+        item.date_of_joining
+          ? new Date(item.date_of_joining).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+          : '—',
     },
   ];
 
   const fetchEmployees = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/employees');
+      const response = await axios.get('/api/employees');
       setEmployees(response.data);
     } catch (error) {
       toast.error('Error fetching employees');
       console.error('Error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -85,7 +95,7 @@ const Employees = () => {
   const handleDelete = async (employee) => {
     if (window.confirm('Are you sure you want to delete this employee?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/employees/${employee.employee_id}`);
+        await axios.delete(`/api/employees/${employee.employee_id}`);
         toast.success('Employee deleted successfully');
         fetchEmployees();
       } catch (error) {
@@ -100,12 +110,12 @@ const Employees = () => {
     try {
       if (selectedEmployee) {
         await axios.put(
-          `http://localhost:5000/api/employees/${selectedEmployee.employee_id}`,
+          `/api/employees/${selectedEmployee.employee_id}`,
           formData
         );
         toast.success('Employee updated successfully');
       } else {
-        await axios.post('http://localhost:5000/api/employees', formData);
+        await axios.post('/api/employees', formData);
         toast.success('Employee added successfully');
       }
       setIsModalOpen(false);
@@ -118,20 +128,16 @@ const Employees = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Employees</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Manage your organization's employees
-        </p>
-      </div>
-
       <DataTable
+        isLoading={isLoading}
+        subtitle="Everyone on the payroll, with their department and joining date."
         columns={columns}
         data={employees}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onAdd={handleAdd}
-        title="Employee List"
+        title="Employees"
+        addButtonText="Add employee"
       />
 
       <FormModal

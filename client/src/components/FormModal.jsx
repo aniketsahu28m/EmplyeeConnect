@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { FaTimes } from 'react-icons/fa';
+import { LuX } from 'react-icons/lu';
 
 const FormModal = ({
   isOpen,
@@ -13,85 +13,62 @@ const FormModal = ({
 }) => {
   return (
     <Transition.Root show={isOpen} as={Fragment}>
-      <Dialog
-        as="div"
-        className="fixed z-10 inset-0 overflow-y-auto"
-        onClose={onClose}
-      >
-        <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <Dialog.Overlay className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
-          </Transition.Child>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-200"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-150"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black/40" />
+        </Transition.Child>
 
-          <span
-            className="hidden sm:inline-block sm:align-middle sm:h-screen"
-            aria-hidden="true"
-          >
-            &#8203;
-          </span>
-
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-            enterTo="opacity-100 translate-y-0 sm:scale-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-            leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-          >
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                    <div className="flex justify-between items-center mb-4">
-                      <Dialog.Title
-                        as="h3"
-                        className="text-lg leading-6 font-medium text-gray-900"
-                      >
-                        {title}
-                      </Dialog.Title>
-                      <button
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-gray-500"
-                      >
-                        <FaTimes className="w-5 h-5" />
-                      </button>
-                    </div>
-                    <form onSubmit={onSubmit} className="space-y-4">
-                      {children}
-                      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                        <button
-                          type="submit"
-                          className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-200 sm:ml-3 sm:w-auto sm:text-sm"
-                        >
-                          {submitText}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={onClose}
-                          className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-200 sm:mt-0 sm:w-auto sm:text-sm"
-                        >
-                          {cancelText}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-end justify-center p-4 sm:items-center">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-200"
+              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              enterTo="opacity-100 translate-y-0 sm:scale-100"
+              leave="ease-in duration-150"
+              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+            >
+              <Dialog.Panel className="w-full max-w-lg overflow-hidden rounded-lg border border-gray-200 bg-white text-left shadow-2xl">
+                <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
+                  <Dialog.Title as="h3" className="text-[15px] font-semibold text-gray-900">
+                    {title}
+                  </Dialog.Title>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="-mr-1.5 rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                    aria-label="Close"
+                  >
+                    <LuX className="h-4 w-4" />
+                  </button>
                 </div>
-              </div>
-            </div>
-          </Transition.Child>
+                <form onSubmit={onSubmit}>
+                  <div className="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4 [&_label]:text-[13px] [&_label]:text-gray-800">{children}</div>
+                  <div className="flex flex-col-reverse gap-2 border-t border-gray-200 px-5 py-3 sm:flex-row sm:justify-end">
+                    <button type="button" onClick={onClose} className="btn-secondary">
+                      {cancelText}
+                    </button>
+                    <button type="submit" className="btn-primary">
+                      {submitText}
+                    </button>
+                  </div>
+                </form>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
         </div>
       </Dialog>
     </Transition.Root>
   );
 };
 
-export default FormModal; 
+export default FormModal;

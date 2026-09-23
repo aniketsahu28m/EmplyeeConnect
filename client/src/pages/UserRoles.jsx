@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import DataTable from '../components/DataTable';
 import FormModal from '../components/FormModal';
-import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 const UserRoles = () => {
@@ -11,7 +10,6 @@ const UserRoles = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
 
   const [formData, setFormData] = useState({
     user_id: '',
@@ -21,7 +19,7 @@ const UserRoles = () => {
   const fetchUserRoles = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get('http://localhost:5000/api/user-roles');
+      const response = await axios.get('/api/user-roles');
       setUserRoles(response.data);
     } catch (error) {
       toast.error('Error fetching user roles');
@@ -34,7 +32,7 @@ const UserRoles = () => {
   const fetchUsers = async () => {
     try {
       console.log('Fetching users...');
-      const response = await axios.get('http://localhost:5000/api/users');
+      const response = await axios.get('/api/users');
       console.log('Users response:', response.data);
       setUsers(response.data);
     } catch (error) {
@@ -69,7 +67,7 @@ const UserRoles = () => {
   const handleDelete = async (role) => {
     if (window.confirm('Are you sure you want to delete this role assignment?')) {
       try {
-        const response = await axios.delete(`http://localhost:5000/api/user-roles/${role.role_id}`);
+        const response = await axios.delete(`/api/user-roles/${role.role_id}`);
         if (response.data.error) {
           throw new Error(response.data.error);
         }
@@ -97,7 +95,7 @@ const UserRoles = () => {
 
       if (selectedRole) {
         const response = await axios.put(
-          `http://localhost:5000/api/user-roles/${selectedRole.role_id}`,
+          `/api/user-roles/${selectedRole.role_id}`,
           formData
         );
         if (response.data.error) {
@@ -105,7 +103,7 @@ const UserRoles = () => {
         }
         toast.success('Role assignment updated successfully');
       } else {
-        const response = await axios.post('http://localhost:5000/api/user-roles', formData);
+        const response = await axios.post('/api/user-roles', formData);
         if (response.data.error) {
           throw new Error(response.data.error);
         }
@@ -119,37 +117,32 @@ const UserRoles = () => {
     }
   };
 
-  const getRoleBadge = (role) => {
-    const colors = {
-      Admin: 'bg-red-100 text-red-800',
-      Manager: 'bg-blue-100 text-blue-800',
-      Employee: 'bg-green-100 text-green-800'
-    };
-
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[role]}`}>
-        {role}
-      </span>
-    );
-  };
+  const getRoleBadge = (role) => (
+    <span className={`text-[13px] ${role === 'Admin' ? 'font-medium text-gray-900' : 'text-gray-700'}`}>{role}</span>
+  );
 
   const columns = [
-    { key: 'first_name', label: 'First Name' },
-    { key: 'last_name', label: 'Last Name' },
+    {
+      key: 'first_name',
+      label: 'Name',
+      render: (item) => `${item.first_name} ${item.last_name}`,
+      searchValue: (item) => `${item.first_name} ${item.last_name}`,
+    },
     { key: 'email', label: 'Email' },
     { key: 'role', label: 'Role', render: (item) => getRoleBadge(item.role) }
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div>
       <DataTable
+        isLoading={isLoading}
         columns={columns}
         data={userRoles}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onAdd={handleAdd}
-        title="User Roles"
-        addButtonText="Assign Role"
+        title="User roles"
+        addButtonText="Assign role"
       />
 
       <FormModal

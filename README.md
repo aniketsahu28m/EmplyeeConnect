@@ -15,91 +15,70 @@ EmployeeConnect is a DBMS project for employee and operations management with a 
 - `server/db_setup.sql`: schema setup
 - `server/init_data.sql`: seed data
 
-## Prerequisites
+## Prerequisites (macOS)
 
-- Node.js 18+
-- npm 9+
-- Python 3.10+
-- MySQL 8+
-
-## 1. Clone and Install
+Install [Homebrew](https://brew.sh), then:
 
 ```bash
-git clone https://github.com/aniketsahu28m/EmplyeeConnect.git
-cd EmplyeeConnect
+brew install mysql python node
 ```
 
-Install frontend dependencies:
+This gives you MySQL 8+, Python 3.10+ and Node.js 18+ with npm. Homebrew's MySQL `root` user has no password by default, which is what the app expects.
+
+## 1. Clone and Set Up
 
 ```bash
-cd client
-npm install
-cd ..
+git clone https://github.com/aniketsahu28m/EmplyeeConnect.git EmployeeConnect
+cd EmployeeConnect
+./setup.sh
 ```
 
-Install backend dependencies:
+`setup.sh` is safe to re-run. It:
+
+- starts MySQL (`brew services start mysql`)
+- creates the `ems_db` database from `server/db_setup.sql`
+- loads the default data from `server/init_data.sql`, only if the database has no users yet
+- creates the Python environment in `server/.venv` and installs the backend packages
+- installs the frontend packages in `client/node_modules`
+
+If your MySQL user or password differ from the defaults, update `db_config` in `server/app.py`:
+
+```python
+db_config = {
+    'host': 'localhost',
+    'user': 'root',
+    'password': '',
+    'database': 'ems_db'
+}
+```
+
+## 2. Run
 
 ```bash
-cd server
-python -m venv .venv
+./run.sh
 ```
 
-Windows PowerShell:
+This starts MySQL if needed, the backend API on `http://localhost:8000` and the frontend on `http://localhost:5173`, then opens the app in your browser. Press `Ctrl+C` to stop everything.
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
+Default accounts:
 
-macOS / Linux:
+| Role | Email | Password |
+|---|---|---|
+| Admin | admin@example.com | admin123 |
+| Manager | manager@example.com | manager123 |
+| Employee | employee@example.com | employee123 |
+
+To start the two servers separately instead, in two terminals:
 
 ```bash
-source .venv/bin/activate
-pip install -r requirements.txt
+cd server && source .venv/bin/activate && python app.py
 ```
-
-## 2. Database Setup
-
-1. Create database `ems_db` in MySQL.
-2. Run schema and seed scripts from `server/`:
-
-```sql
-SOURCE db_setup.sql;
-SOURCE init_data.sql;
-```
-
-3. Update credentials in `server/app.py` (`db_config`) if your local user/password differ.
-
-## 3. Run (Development)
-
-Start backend API on port 5000.
-
-Windows PowerShell:
-
-```powershell
-cd server
-.\.venv\Scripts\Activate.ps1
-python app.py
-```
-
-macOS / Linux:
 
 ```bash
-cd server
-source .venv/bin/activate
-python app.py
+cd client && npm run dev
 ```
 
-In another terminal, start frontend on port 5173:
-
-```bash
-cd client
-npm run dev
-```
-
-Open `http://localhost:5173`.
-
-## 4. Build (Production Frontend)
+## 3. Build (Production Frontend)
 
 ```bash
 cd client
@@ -112,24 +91,24 @@ Preview built frontend locally:
 npm run preview
 ```
 
-## 5. Tests
+## 4. Tests
 
 Backend tests are in `server/tests/` and use `pytest` with Flask test client.
 
-Install test dependencies:
+Test dependencies are installed by `setup.sh`. Run the tests with:
 
 ```bash
-cd server
-pip install -r requirements-dev.txt
+cd server && .venv/bin/python -m pytest
 ```
 
-Run tests:
+## Configuration
 
-```bash
-pytest
-```
+The frontend calls the backend at `http://localhost:8000` by default. To point it at a deployed backend, copy `client/.env.example` to `client/.env` and set `VITE_API_URL`, then rebuild.
 
 ## Notes
+
+- The login page has **User** and **Admin** tabs. Admin accounts can only sign in from the Admin tab, and managers and employees only from the User tab.
+- Light and dark mode: use the sun/moon button in the header. The app follows your system setting until you choose.
 
 - This is an academic project and does not include production-grade auth/security hardening.
 - Keep secrets out of source code for deployment.

@@ -1,15 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import {
-  FaUsers,
-  FaComments,
-  FaFileAlt,
-  FaPaperPlane,
-  FaCloudUploadAlt,
-  FaUserPlus,
-  FaPlus,
-} from 'react-icons/fa';
+import { LuUsers, LuMessageSquare, LuFileText, LuSend, LuUpload, LuUserPlus, LuPlus } from 'react-icons/lu';
 import FormModal from '../components/FormModal';
 import toast from 'react-hot-toast';
 
@@ -42,26 +34,24 @@ const TeamCollaboration = () => {
     uploaded_by: '',
   });
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/employees');
+      const response = await axios.get('/api/employees');
       setEmployees(response.data);
-      
-      // If we have user data and it's the first load, try to find the employee record
-      if (user && !selectedEmployee && response.data.length > 0) {
-        const currentUserEmployee = response.data.find(emp => emp.user_id === user.id);
-        if (currentUserEmployee) {
-          setFileFormData({ ...fileFormData, uploaded_by: currentUserEmployee.employee_id });
-        }
+
+      // Pre-fill "uploaded by" with the current user's employee record
+      const currentUserEmployee = response.data.find(emp => emp.user_id === user?.id);
+      if (currentUserEmployee) {
+        setFileFormData(prev => ({ ...prev, uploaded_by: currentUserEmployee.employee_id }));
       }
     } catch (error) {
       console.error('Error fetching employees:', error);
     }
-  };
+  }, [user?.id]);
 
   const fetchTeams = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/teams');
+      const response = await axios.get('/api/teams');
       setTeams(response.data);
     } catch (error) {
       console.error('Error fetching teams:', error);
@@ -70,14 +60,14 @@ const TeamCollaboration = () => {
 
   const fetchSharedFiles = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/shared_files');
+      const response = await axios.get('/api/shared_files');
       setSharedFiles(response.data);
     } catch (error) {
       console.error('Error fetching shared files:', error);
     }
   };
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!selectedEmployee) return;
     
     try {
@@ -85,25 +75,25 @@ const TeamCollaboration = () => {
       const currentUserEmployee = employees.find(emp => emp.user_id === user.id);
       
       if (currentUserEmployee) {
-        const response = await axios.get(`http://localhost:5000/api/messages?sender_id=${currentUserEmployee.employee_id}&receiver_id=${selectedEmployee.employee_id}`);
+        const response = await axios.get(`/api/messages?sender_id=${currentUserEmployee.employee_id}&receiver_id=${selectedEmployee.employee_id}`);
         setMessages(response.data);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
-  };
+  }, [selectedEmployee, employees, user.id]);
 
   useEffect(() => {
     fetchEmployees();
     fetchTeams();
     fetchSharedFiles();
-  }, []);
+  }, [fetchEmployees]);
 
   useEffect(() => {
     if (selectedEmployee) {
       fetchMessages();
     }
-  }, [selectedEmployee]);
+  }, [selectedEmployee, fetchMessages]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -117,7 +107,7 @@ const TeamCollaboration = () => {
       const currentUserEmployee = employees.find(emp => emp.user_id === user.id);
       
       if (currentUserEmployee) {
-        await axios.post('http://localhost:5000/api/messages', {
+        await axios.post('/api/messages', {
           sender_id: currentUserEmployee.employee_id,
           receiver_id: selectedEmployee.employee_id,
           message: messageText
@@ -140,7 +130,7 @@ const TeamCollaboration = () => {
     
     try {
       setIsLoading(true);
-      await axios.post('http://localhost:5000/api/teams', teamFormData);
+      await axios.post('/api/teams', teamFormData);
       toast.success('Team created successfully');
       setIsTeamModalOpen(false);
       fetchTeams();
@@ -157,7 +147,7 @@ const TeamCollaboration = () => {
     
     try {
       setIsLoading(true);
-      await axios.post('http://localhost:5000/api/shared_files', fileFormData);
+      await axios.post('/api/shared_files', fileFormData);
       toast.success('File uploaded successfully');
       setIsFileModalOpen(false);
       fetchSharedFiles();
@@ -261,7 +251,7 @@ const TeamCollaboration = () => {
                   disabled={isLoading || !messageText.trim()}
                   className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50"
                 >
-                  <FaPaperPlane />
+                  <LuSend />
                 </button>
               </form>
             </div>
@@ -269,7 +259,7 @@ const TeamCollaboration = () => {
         ) : (
           <div className="flex items-center justify-center h-full p-8">
             <div className="text-center">
-              <FaComments className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <LuMessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500">Select an employee to start messaging</p>
             </div>
           </div>
@@ -294,7 +284,7 @@ const TeamCollaboration = () => {
           }}
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
         >
-          <FaPlus className="mr-2" /> Create Team
+          <LuPlus className="mr-2" /> Create Team
         </button>
       </div>
 
@@ -308,11 +298,11 @@ const TeamCollaboration = () => {
             <div className="p-4">
               <p className="text-sm text-gray-600 mb-4">{team.description}</p>
               <div className="flex items-center space-x-2">
-                <FaUsers className="text-gray-500" />
+                <LuUsers className="text-gray-500" />
                 <span className="text-sm text-gray-500">Members</span>
               </div>
               <button className="mt-4 w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
-                <FaUserPlus className="mr-2" /> Add Member
+                <LuUserPlus className="mr-2" /> Add Member
               </button>
             </div>
           </div>
@@ -320,7 +310,7 @@ const TeamCollaboration = () => {
 
         {teams.length === 0 && (
           <div className="col-span-3 bg-white rounded-lg shadow p-8 text-center">
-            <FaUsers className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <LuUsers className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No teams created yet</p>
             <button
               onClick={() => {
@@ -334,7 +324,7 @@ const TeamCollaboration = () => {
               }}
               className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
             >
-              <FaPlus className="mr-2" /> Create Team
+              <LuPlus className="mr-2" /> Create Team
             </button>
           </div>
         )}
@@ -360,7 +350,7 @@ const TeamCollaboration = () => {
           }}
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
         >
-          <FaCloudUploadAlt className="mr-2" /> Upload File
+          <LuUpload className="mr-2" /> Upload File
         </button>
       </div>
 
@@ -390,7 +380,7 @@ const TeamCollaboration = () => {
               <tr key={file.file_id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    <FaFileAlt className="mr-2 text-gray-500" />
+                    <LuFileText className="mr-2 text-gray-500" />
                     <div className="text-sm font-medium text-gray-900">{file.file_name}</div>
                   </div>
                 </td>
@@ -434,10 +424,8 @@ const TeamCollaboration = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Team Collaboration</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Communicate with your team, share files, and manage team structures
-        </p>
+        <h1 className="page-title">Team</h1>
+        <p className="mt-1 text-[13px] text-gray-500">Direct messages, teams, and files shared with everyone.</p>
       </div>
 
       <div className="border-b border-gray-200">
@@ -451,7 +439,7 @@ const TeamCollaboration = () => {
             onClick={() => setActiveTab('messages')}
           >
             <div className="flex items-center">
-              <FaComments className="mr-2" />
+              <LuMessageSquare className="mr-2" />
               Messages
             </div>
           </button>
@@ -464,7 +452,7 @@ const TeamCollaboration = () => {
             onClick={() => setActiveTab('teams')}
           >
             <div className="flex items-center">
-              <FaUsers className="mr-2" />
+              <LuUsers className="mr-2" />
               Teams
             </div>
           </button>
@@ -477,7 +465,7 @@ const TeamCollaboration = () => {
             onClick={() => setActiveTab('files')}
           >
             <div className="flex items-center">
-              <FaFileAlt className="mr-2" />
+              <LuFileText className="mr-2" />
               Shared Files
             </div>
           </button>

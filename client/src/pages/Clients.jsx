@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import DataTable from '../components/DataTable';
 import FormModal from '../components/FormModal';
-import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 const Clients = () => {
@@ -10,7 +9,6 @@ const Clients = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -23,7 +21,7 @@ const Clients = () => {
   const fetchClients = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get('http://localhost:5000/api/clients');
+      const response = await axios.get('/api/clients');
       setClients(response.data);
     } catch (error) {
       toast.error('Error fetching clients');
@@ -64,7 +62,7 @@ const Clients = () => {
   const handleDelete = async (client) => {
     if (window.confirm('Are you sure you want to delete this client?')) {
       try {
-        const response = await axios.delete(`http://localhost:5000/api/clients/${client.client_id}`);
+        const response = await axios.delete(`/api/clients/${client.client_id}`);
         if (response.data.error) {
           throw new Error(response.data.error);
         }
@@ -104,7 +102,7 @@ const Clients = () => {
 
       if (selectedClient) {
         const response = await axios.put(
-          `http://localhost:5000/api/clients/${selectedClient.client_id}`,
+          `/api/clients/${selectedClient.client_id}`,
           formData
         );
         if (response.data.error) {
@@ -112,7 +110,7 @@ const Clients = () => {
         }
         toast.success('Client updated successfully');
       } else {
-        const response = await axios.post('http://localhost:5000/api/clients', formData);
+        const response = await axios.post('/api/clients', formData);
         if (response.data.error) {
           throw new Error(response.data.error);
         }
@@ -127,7 +125,7 @@ const Clients = () => {
   };
 
   const columns = [
-    { key: 'name', label: 'Contact Name' },
+    { key: 'name', label: 'Contact name' },
     { key: 'company_name', label: 'Company' },
     { key: 'email', label: 'Email' },
     { key: 'phone', label: 'Phone' },
@@ -135,15 +133,16 @@ const Clients = () => {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div>
       <DataTable
+        isLoading={isLoading}
         columns={columns}
         data={clients}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onAdd={handleAdd}
         title="Clients"
-        addButtonText="Add Client"
+        addButtonText="Add client"
       />
 
       <FormModal

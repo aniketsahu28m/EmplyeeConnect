@@ -10,7 +10,7 @@ CORS(app)
 db_config = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'root',
+    'password': '',
     'database': 'ems_db'
 }
 
@@ -24,9 +24,12 @@ def get_db_connection():
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+    # Which login tab the user signed in from: 'admin', 'user', or missing (any role).
+    portal = (data.get('portal') or '').strip().lower()
+    print(f"Login attempt for: {email}")
     
     conn = get_db_connection()
     if not conn:
@@ -34,11 +37,19 @@ def login():
     
     try:
         cursor = conn.cursor(dictionary=True)
-        query = "SELECT * FROM Users WHERE email = %s AND password = %s"
+        query = "SELECT * FROM users WHERE LOWER(email) = LOWER(%s) AND password = %s"
         cursor.execute(query, (email, password))
         user = cursor.fetchone()
         
+        if user and portal == 'admin' and user['role'] != 'Admin':
+            print(f"Login rejected for: {email} (not an admin)")
+            return jsonify({'error': 'This is not an admin account. Please sign in from the User tab.'}), 403
+        if user and portal == 'user' and user['role'] == 'Admin':
+            print(f"Login rejected for: {email} (admin on user tab)")
+            return jsonify({'error': 'Admin accounts must sign in from the Admin tab.'}), 403
+
         if user:
+            print(f"Login success for: {email}")
             return jsonify({
                 'success': True,
                 'user': {
@@ -50,6 +61,7 @@ def login():
                 }
             })
         else:
+            print(f"Login failed for: {email}")
             return jsonify({'error': 'Invalid credentials'}), 401
             
     except Error as e:
@@ -70,19 +82,19 @@ def get_dashboard_stats():
         cursor = conn.cursor(dictionary=True)
         
         # Get total employees
-        cursor.execute("SELECT COUNT(*) as total FROM Employee")
+        cursor.execute("SELECT COUNT(*) as total FROM employee")
         total_employees = cursor.fetchone()['total']
         
         # Get total projects
-        cursor.execute("SELECT COUNT(*) as total FROM Projects")
+        cursor.execute("SELECT COUNT(*) as total FROM projects")
         total_projects = cursor.fetchone()['total']
         
         # Get total tasks
-        cursor.execute("SELECT COUNT(*) as total FROM Tasks")
+        cursor.execute("SELECT COUNT(*) as total FROM tasks")
         total_tasks = cursor.fetchone()['total']
         
         # Get pending tasks
-        cursor.execute("SELECT COUNT(*) as total FROM Tasks WHERE status = 'Pending'")
+        cursor.execute("SELECT COUNT(*) as total FROM tasks WHERE status = 'Pending'")
         pending_tasks = cursor.fetchone()['total']
         
         return jsonify({
@@ -111,8 +123,8 @@ def get_employees():
         cursor = conn.cursor(dictionary=True)
         query = """
             SELECT e.*, u.first_name, u.last_name, u.email
-            FROM Employee e
-            JOIN Users u ON e.user_id = u.user_id
+            FROM employee e
+            JOIN users u ON e.user_id = u.user_id
         """
         cursor.execute(query)   
         employees = cursor.fetchall()
@@ -137,7 +149,7 @@ def create_employee():
 
         # First create the user
         user_query = """
-            INSERT INTO Users (first_name, last_name, email, password, role)
+            INSERT INTO users (first_name, last_name, email, password, role)
             VALUES (%s, %s, %s, %s, 'Employee')
         """
         cursor.execute(user_query, (
@@ -150,7 +162,7 @@ def create_employee():
 
         # Then create the employee
         employee_query = """
-            INSERT INTO Employee (user_id, department, designation, salary, date_of_joining)
+            INSERT INTO employee (user_id, department, designation, salary, date_of_joining)
             VALUES (%s, %s, %s, %s, %s)
         """
         cursor.execute(employee_query, (
@@ -183,7 +195,7 @@ def update_employee(employee_id):
         cursor = conn.cursor()
 
         # Get the user_id for this employee
-        cursor.execute("SELECT user_id FROM Employee WHERE employee_id = %s", (employee_id,))
+        cursor.execute("SELECT user_id FROM employee WHERE employee_id = %s", (employee_id,))
         result = cursor.fetchone()
         if not result:
             return jsonify({'error': 'Employee not found'}), 404
@@ -192,7 +204,7 @@ def update_employee(employee_id):
 
         # Update the user information
         user_query = """
-            UPDATE Users
+            UPDATE users
             SET first_name = %s, last_name = %s, email = %s
             WHERE user_id = %s
         """
@@ -205,7 +217,7 @@ def update_employee(employee_id):
 
         # Update the employee information
         employee_query = """
-            UPDATE Employee
+            UPDATE employee
             SET department = %s, designation = %s, salary = %s, date_of_joining = %s
             WHERE employee_id = %s
         """
@@ -238,7 +250,7 @@ def delete_employee(employee_id):
         cursor = conn.cursor()
 
         # Get the user_id for this employee
-        cursor.execute("SELECT user_id FROM Employee WHERE employee_id = %s", (employee_id,))
+        cursor.execute("SELECT user_id FROM employee WHERE employee_id = %s", (employee_id,))
         result = cursor.fetchone()
         if not result:
             return jsonify({'error': 'Employee not found'}), 404
@@ -246,7 +258,7 @@ def delete_employee(employee_id):
         user_id = result[0]
 
         # Delete the employee (this will cascade delete the user due to ON DELETE CASCADE)
-        cursor.execute("DELETE FROM Employee WHERE employee_id = %s", (employee_id,))
+        cursor.execute("DELETE FROM employee WHERE employee_id = %s", (employee_id,))
         
         conn.commit()
         return jsonify({'message': 'Employee deleted successfully'})
@@ -1923,4 +1935,4 @@ def signup():
             conn.close()
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True, host='0.0.0.0', port=8000, use_reloader=False)

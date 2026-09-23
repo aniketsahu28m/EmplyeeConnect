@@ -119,3 +119,38 @@ def test_create_attendance_duplicate_record(client, monkeypatch):
 
     assert response.status_code == 400
     assert response.get_json()["error"] == "Attendance record already exists for this date"
+
+
+def _user(role):
+    return {
+        "user_id": 1,
+        "email": f"{role.lower()}@example.com",
+        "role": role,
+        "first_name": role,
+        "last_name": "User",
+    }
+
+
+@pytest.mark.parametrize(
+    "role, portal, expected_status",
+    [
+        ("Admin", "admin", 200),
+        ("Manager", "user", 200),
+        ("Employee", "user", 200),
+        ("Manager", "admin", 403),
+        ("Employee", "admin", 403),
+        ("Admin", "user", 403),
+    ],
+)
+def test_login_portal_must_match_role(client, monkeypatch, role, portal, expected_status):
+    stub_cursor = StubCursor(fetchone_results=[_user(role)])
+    monkeypatch.setattr(app_module, "get_db_connection", lambda: StubConn(stub_cursor))
+
+    response = client.post(
+        "/api/login",
+        json={"email": f"{role.lower()}@example.com", "password": "secret", "portal": portal},
+    )
+
+    assert response.status_code == expected_status
+    if expected_status == 403:
+        assert "tab" in response.get_json()["error"]

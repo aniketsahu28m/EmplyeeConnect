@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import DataTable from '../components/DataTable';
 import FormModal from '../components/FormModal';
-import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 const Offices = () => {
@@ -11,7 +10,6 @@ const Offices = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOffice, setSelectedOffice] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
 
   const [formData, setFormData] = useState({
     office_name: '',
@@ -22,7 +20,7 @@ const Offices = () => {
   const fetchOffices = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get('http://localhost:5000/api/offices');
+      const response = await axios.get('/api/offices');
       setOffices(response.data);
     } catch (error) {
       toast.error('Error fetching offices');
@@ -34,7 +32,7 @@ const Offices = () => {
 
   const fetchEmployees = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/employees');
+      const response = await axios.get('/api/employees');
       setEmployees(response.data);
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -69,7 +67,7 @@ const Offices = () => {
   const handleDelete = async (office) => {
     if (window.confirm('Are you sure you want to delete this office?')) {
       try {
-        const response = await axios.delete(`http://localhost:5000/api/offices/${office.office_id}`);
+        const response = await axios.delete(`/api/offices/${office.office_id}`);
         if (response.data.error) {
           throw new Error(response.data.error);
         }
@@ -97,7 +95,7 @@ const Offices = () => {
 
       if (selectedOffice) {
         const response = await axios.put(
-          `http://localhost:5000/api/offices/${selectedOffice.office_id}`,
+          `/api/offices/${selectedOffice.office_id}`,
           formData
         );
         if (response.data.error) {
@@ -105,7 +103,7 @@ const Offices = () => {
         }
         toast.success('Office updated successfully');
       } else {
-        const response = await axios.post('http://localhost:5000/api/offices', formData);
+        const response = await axios.post('/api/offices', formData);
         if (response.data.error) {
           throw new Error(response.data.error);
         }
@@ -120,7 +118,7 @@ const Offices = () => {
   };
 
   const columns = [
-    { key: 'office_name', label: 'Office Name' },
+    { key: 'office_name', label: 'Office name' },
     { key: 'location', label: 'Location' },
     { 
       key: 'manager_name', 
@@ -130,15 +128,16 @@ const Offices = () => {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div>
       <DataTable
+        isLoading={isLoading}
         columns={columns}
         data={offices}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onAdd={handleAdd}
         title="Offices"
-        addButtonText="Add Office"
+        addButtonText="Add office"
       />
 
       <FormModal
